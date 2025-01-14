@@ -12,6 +12,7 @@ use core::marker;
 use core::mem::MaybeUninit;
 use core::ptr::NonNull;
 use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use serde::{Deserialize, Serialize};
 use wasmtime_environ::component::{
     CanonicalAbiInfo, ComponentTypes, DefinedResourceIndex, InterfaceType, ResourceIndex,
     TypeResourceTableIndex,
@@ -28,7 +29,7 @@ use wasmtime_environ::component::{
 /// Resource types can also be defined on the host in addition to guests. On the
 /// host resource types are tied to a `T`, an arbitrary Rust type. Two host
 /// resource types are the same if they point to the same `T`.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ResourceType {
     kind: ResourceTypeKind,
 }
@@ -80,7 +81,7 @@ impl ResourceType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 enum ResourceTypeKind {
     Host(TypeId),
     Guest {
@@ -350,7 +351,7 @@ struct TableSlot {
 /// This is morally (u32, u32) but is encoded as a 64-bit integer. The low
 /// 32-bits are the table index and the upper 32-bits are the generation
 /// counter.
-#[derive(PartialEq, Eq, Debug, Copy, Clone)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct HostResourceIndex(u64);
 
@@ -889,7 +890,7 @@ impl<T> fmt::Debug for Resource<T> {
 /// [`ResourceAny`]: even borrows. Both borrows and own handles have state
 /// associated with them that must be discarded by the time they're done being
 /// used.
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub struct ResourceAny {
     idx: HostResourceIndex,
     ty: ResourceType,

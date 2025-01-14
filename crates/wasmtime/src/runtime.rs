@@ -29,6 +29,7 @@
 #[macro_use]
 pub(crate) mod func;
 
+pub mod chain;
 pub(crate) mod code;
 pub(crate) mod code_memory;
 pub(crate) mod debug;

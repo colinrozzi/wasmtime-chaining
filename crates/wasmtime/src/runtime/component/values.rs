@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::ValRaw;
 use core::mem::MaybeUninit;
 use core::slice::{Iter, IterMut};
+use serde::{Deserialize, Serialize};
 use wasmtime_component_util::{DiscriminantSize, FlagsSize};
 use wasmtime_environ::component::{
     CanonicalAbiInfo, InterfaceType, TypeEnum, TypeFlags, TypeListIndex, TypeOption, TypeResult,
@@ -61,7 +62,7 @@ use wasmtime_environ::component::{
 /// `Val` are type-checked against what's required by the component itself.
 ///
 /// [`Func::call`]: crate::component::Func::call
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub enum Val {
     Bool(bool),
@@ -85,7 +86,28 @@ pub enum Val {
     Option(Option<Box<Val>>),
     Result(Result<Option<Box<Val>>, Option<Box<Val>>>),
     Flags(Vec<String>),
-    Resource(ResourceAny),
+    Resource(#[serde(with = "temporary_unimplemented")] ResourceAny), // lets get rid of dynamic typing who even
+                                                                      // wants that its lame and stupid
+}
+
+mod temporary_unimplemented {
+
+    use crate::component::ResourceAny;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(_resource: &ResourceAny, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        unimplemented!("AHHHHHH: Resource serialization not yet implemented")
+    }
+
+    pub fn deserialize<'de, D>(_deserializer: D) -> Result<ResourceAny, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        unimplemented!("AHHHHHH: Resource deserialization not yet implemented")
+    }
 }
 
 impl Val {
@@ -674,6 +696,64 @@ impl PartialEq for Val {
 }
 
 impl Eq for Val {}
+
+impl std::hash::Hash for Val {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // First hash the discriminant to differentiate between variants
+        std::mem::discriminant(self).hash(state);
+
+        match self {
+            // For floats, we need special handling to match our PartialEq implementation
+            // where NaN == NaN and -0.0 == 0.0
+            Self::Float32(f) => {
+                if f.is_nan() {
+                    // Hash all NaNs the same
+                    state.write_u32(u32::MAX);
+                } else if *f == 0.0 {
+                    // Hash -0.0 and 0.0 the same
+                    state.write_u32(0);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+            Self::Float64(f) => {
+                if f.is_nan() {
+                    // Hash all NaNs the same
+                    state.write_u64(u64::MAX);
+                } else if *f == 0.0 {
+                    // Hash -0.0 and 0.0 the same
+                    state.write_u64(0);
+                } else {
+                    f.to_bits().hash(state);
+                }
+            }
+            // For all other variants, just hash their contents directly
+            Self::Bool(v) => v.hash(state),
+            Self::S8(v) => v.hash(state),
+            Self::U8(v) => v.hash(state),
+            Self::S16(v) => v.hash(state),
+            Self::U16(v) => v.hash(state),
+            Self::S32(v) => v.hash(state),
+            Self::U32(v) => v.hash(state),
+            Self::S64(v) => v.hash(state),
+            Self::U64(v) => v.hash(state),
+            Self::Char(v) => v.hash(state),
+            Self::String(v) => v.hash(state),
+            Self::List(v) => v.hash(state),
+            Self::Record(v) => v.hash(state),
+            Self::Tuple(v) => v.hash(state),
+            Self::Variant(name, val) => {
+                name.hash(state);
+                val.hash(state);
+            }
+            Self::Enum(v) => v.hash(state),
+            Self::Option(v) => v.hash(state),
+            Self::Result(v) => v.hash(state),
+            Self::Flags(v) => v.hash(state),
+            Self::Resource(v) => v.hash(state),
+        }
+    }
+}
 
 struct GenericVariant<'a> {
     discriminant: u32,

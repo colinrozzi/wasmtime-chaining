@@ -6,6 +6,7 @@ use core::marker;
 use core::num::NonZeroU64;
 use core::ops::{Index, IndexMut};
 use core::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use serde::{Deserialize, Serialize};
 
 // This is defined here, in a private submodule, so we can explicitly reexport
 // it only as `pub(crate)`. This avoids a ton of
@@ -202,7 +203,7 @@ where
 /// owned by a `Store` and will embed a `StoreId` internally to say which store
 /// it came from. Comparisons with this value are how panics are generated for
 /// mismatching the item that a store belongs to.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(transparent)] // NB: relied on in the C API
 pub struct StoreId(NonZeroU64);
 

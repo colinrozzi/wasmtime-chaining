@@ -9,9 +9,11 @@ use crate::hash_map::HashMap;
 use crate::prelude::*;
 use crate::{AsContextMut, Engine, Module, StoreContextMut};
 use alloc::sync::Arc;
+use core::fmt::Debug;
 use core::future::Future;
 use core::marker;
 use core::pin::Pin;
+use serde::Serialize;
 use wasmtime_environ::component::{NameMap, NameMapIntern};
 use wasmtime_environ::PrimaryMap;
 
@@ -403,8 +405,8 @@ impl<T> LinkerInstance<'_, T> {
     pub fn func_wrap<F, Params, Return>(&mut self, name: &str, func: F) -> Result<()>
     where
         F: Fn(StoreContextMut<T>, Params) -> Result<Return> + Send + Sync + 'static,
-        Params: ComponentNamedList + Lift + 'static,
-        Return: ComponentNamedList + Lower + 'static,
+        Params: ComponentNamedList + Lift + 'static + Debug + Serialize,
+        Return: ComponentNamedList + Lower + 'static + Debug + Clone + Serialize,
     {
         self.insert(name, Definition::Func(HostFunc::from_closure(func)))?;
         Ok(())
@@ -424,8 +426,8 @@ impl<T> LinkerInstance<'_, T> {
             + Send
             + Sync
             + 'static,
-        Params: ComponentNamedList + Lift + 'static,
-        Return: ComponentNamedList + Lower + 'static,
+        Params: ComponentNamedList + Lift + 'static + Debug + Serialize,
+        Return: ComponentNamedList + Lower + 'static + Debug + Clone + Serialize,
     {
         assert!(
             self.engine.config().async_support,

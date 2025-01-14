@@ -1,3 +1,4 @@
+use crate::chain::Event;
 use crate::component::func::{LiftContext, LowerContext, Options};
 use crate::component::matching::InstanceType;
 use crate::component::storage::slice_to_storage_mut;
@@ -10,8 +11,12 @@ use crate::runtime::vm::{VMFuncRef, VMMemoryDefinition, VMOpaqueContext};
 use crate::{AsContextMut, CallHook, StoreContextMut, ValRaw};
 use alloc::sync::Arc;
 use core::any::Any;
+use core::fmt::Debug;
+use core::marker::Copy;
 use core::mem::{self, MaybeUninit};
 use core::ptr::NonNull;
+use serde::Serialize;
+use serde_json::json;
 use wasmtime_environ::component::{
     CanonicalAbiInfo, ComponentTypes, InterfaceType, StringEncoding, TypeFuncIndex,
     MAX_FLAT_PARAMS, MAX_FLAT_RESULTS,
@@ -27,8 +32,8 @@ impl HostFunc {
     pub(crate) fn from_closure<T, F, P, R>(func: F) -> Arc<HostFunc>
     where
         F: Fn(StoreContextMut<T>, P) -> Result<R> + Send + Sync + 'static,
-        P: ComponentNamedList + Lift + 'static,
-        R: ComponentNamedList + Lower + 'static,
+        P: ComponentNamedList + Lift + 'static + Debug + Serialize,
+        R: ComponentNamedList + Lower + 'static + Debug + Clone + Serialize,
     {
         let entrypoint = Self::entrypoint::<T, F, P, R>;
         Arc::new(HostFunc {
@@ -51,8 +56,8 @@ impl HostFunc {
     ) -> bool
     where
         F: Fn(StoreContextMut<T>, P) -> Result<R>,
-        P: ComponentNamedList + Lift + 'static,
-        R: ComponentNamedList + Lower + 'static,
+        P: ComponentNamedList + Lift + 'static + Debug + Serialize,
+        R: ComponentNamedList + Lower + 'static + Debug + Clone + Serialize,
     {
         let data = data as *const F;
         unsafe {
@@ -146,8 +151,8 @@ unsafe fn call_host<T, Params, Return, F>(
     closure: F,
 ) -> Result<()>
 where
-    Params: Lift,
-    Return: Lower,
+    Params: Lift + Debug + Serialize,
+    Return: Lower + Debug + Clone + Serialize,
     F: FnOnce(StoreContextMut<'_, T>, Params) -> Result<Return>,
 {
     /// Representation of arguments to this function when a return pointer is in
@@ -212,8 +217,19 @@ where
     lift.enter_call();
     let params = storage.lift_params(&mut lift, param_tys)?;
 
+    cx.0.add_event_to_chain(Event::new(
+        "HostCall".to_string(),
+        serde_json::to_vec(&json!(params)).unwrap(),
+    ));
+
     let ret = closure(cx.as_context_mut(), params)?;
     flags.set_may_leave(false);
+
+    cx.0.add_event_to_chain(Event::new(
+        "HostReturn".to_string(),
+        serde_json::to_vec(&json!(ret)).unwrap(),
+    ));
+
     let mut lower = LowerContext::new(cx, &options, types, instance);
     storage.lower_results(&mut lower, result_tys, ret)?;
     flags.set_may_leave(true);
@@ -274,7 +290,7 @@ where
 }
 
 fn validate_inbounds<T: ComponentType>(memory: &[u8], ptr: &ValRaw) -> Result<usize> {
-    // FIXME(#4311): needs memory64 support
+    // FIXME: needs memory64 support
     let ptr = usize::try_from(ptr.get_u32())?;
     if ptr % usize::try_from(T::ALIGN32)? != 0 {
         bail!("pointer not aligned");
@@ -375,12 +391,22 @@ where
         ret_index = 1;
     };
 
+    store.0.add_event_to_chain(Event::new(
+        "HostCall".to_string(),
+        serde_json::to_vec(&json!(args))?,
+    ));
+
     let mut result_vals = Vec::with_capacity(result_tys.types.len());
     for _ in result_tys.types.iter() {
         result_vals.push(Val::Bool(false));
     }
     closure(store.as_context_mut(), &args, &mut result_vals)?;
     flags.set_may_leave(false);
+
+    store.0.add_event_to_chain(Event::new(
+        "HostReturn".to_string(),
+        serde_json::to_vec(&json!(result_vals))?,
+    ));
 
     let mut cx = LowerContext::new(store, &options, types, instance);
     if let Some(cnt) = result_tys.abi.flat_count(MAX_FLAT_RESULTS) {
@@ -406,7 +432,7 @@ where
 }
 
 fn validate_inbounds_dynamic(abi: &CanonicalAbiInfo, memory: &[u8], ptr: &ValRaw) -> Result<usize> {
-    // FIXME(#4311): needs memory64 support
+    // FIXME: needs memory64 support
     let ptr = usize::try_from(ptr.get_u32())?;
     if ptr % usize::try_from(abi.align32)? != 0 {
         bail!("pointer not aligned");

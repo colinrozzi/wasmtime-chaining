@@ -76,6 +76,7 @@
 //! contents of `StoreOpaque`. This is an invariant that we, as the authors of
 //! `wasmtime`, must uphold for the public interface to be safe.
 
+use crate::chain::{Chain, Event};
 use crate::hash_set::HashSet;
 use crate::instance::InstanceData;
 use crate::linker::Definition;
@@ -394,6 +395,9 @@ pub struct StoreOpaque {
     /// for this store's `Engine`. This is `None` if pulley was disabled at
     /// compile time or if it's not being used by the `Engine`.
     interpreter: Option<Interpreter>,
+
+    /// Chain of function calls that have been made in this store.
+    chain: Chain,
 }
 
 #[cfg(feature = "async")]
@@ -587,6 +591,7 @@ impl<T> Store<T> {
                 } else {
                     None
                 },
+                chain: Chain::new(),
             },
             limiter: None,
             call_hook: None,
@@ -1066,6 +1071,11 @@ impl<T> Store<T> {
     pub fn epoch_deadline_async_yield_and_update(&mut self, delta: u64) {
         self.inner.epoch_deadline_async_yield_and_update(delta);
     }
+
+    /// Returns the current chain of function calls that have been made in this store.
+    pub fn get_chain(&self) -> &Chain {
+        &self.inner.inner.chain
+    }
 }
 
 impl<'a, T> StoreContext<'a, T> {
@@ -1090,6 +1100,11 @@ impl<'a, T> StoreContext<'a, T> {
     /// For more information see [`Store::get_fuel`].
     pub fn get_fuel(&self) -> Result<u64> {
         self.0.get_fuel()
+    }
+
+    /// Chain Accessor
+    pub fn get_chain(&self) -> &Chain {
+        &self.0.inner.chain
     }
 }
 
@@ -1179,6 +1194,11 @@ impl<'a, T> StoreContextMut<'a, T> {
     #[cfg(feature = "async")]
     pub fn epoch_deadline_async_yield_and_update(&mut self, delta: u64) {
         self.0.epoch_deadline_async_yield_and_update(delta);
+    }
+
+    /// Chain accessor
+    pub fn get_chain(&self) -> &Chain {
+        &self.0.inner.chain
     }
 }
 
@@ -2145,6 +2165,11 @@ at https://bytecodealliance.org/security.
                 self.engine.allocator().deallocate_fiber_stack(stack);
             }
         }
+    }
+
+    // chain related functions
+    pub fn add_event_to_chain(&mut self, event: Event) {
+        self.chain.add(event);
     }
 
     pub(crate) fn interpreter(&mut self) -> Option<InterpreterRef<'_>> {

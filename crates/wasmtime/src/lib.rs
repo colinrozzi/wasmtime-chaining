@@ -368,6 +368,8 @@ impl<T> MaybeUninitExt<T> for core::mem::MaybeUninit<T> {
 mod runtime;
 #[cfg(feature = "runtime")]
 pub use runtime::*;
+#[cfg(feature = "runtime")]
+pub use runtime::chain;
 
 #[cfg(any(feature = "cranelift", feature = "winch"))]
 mod compile;

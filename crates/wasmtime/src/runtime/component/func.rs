@@ -3,6 +3,7 @@ use crate::component::storage::storage_as_slice;
 use crate::component::types::Type;
 use crate::component::values::Val;
 use crate::prelude::*;
+use crate::runtime::chain::Event;
 use crate::runtime::vm::component::ResourceTables;
 use crate::runtime::vm::{Export, ExportFunction};
 use crate::store::{StoreOpaque, Stored};
@@ -10,6 +11,7 @@ use crate::{AsContext, AsContextMut, StoreContextMut, ValRaw};
 use alloc::sync::Arc;
 use core::mem::{self, MaybeUninit};
 use core::ptr::NonNull;
+use serde_json::json;
 use wasmtime_environ::component::{
     CanonicalOptions, ComponentTypes, CoreDef, InterfaceType, RuntimeComponentInstanceIndex,
     TypeFuncIndex, TypeTuple, MAX_FLAT_PARAMS, MAX_FLAT_RESULTS,
@@ -321,6 +323,8 @@ impl Func {
     ) -> Result<()> {
         let store = &mut store.as_context_mut();
 
+        let mut results_copy = Vec::with_capacity(results.len());
+
         let param_tys = self.params(&store);
         let result_tys = self.results(&store);
 
@@ -339,7 +343,12 @@ impl Func {
             );
         }
 
-        self.call_raw(
+        store.0.add_event_to_chain(Event::new(
+            "WasmCall".to_string(),
+            serde_json::to_vec(&json!(params))?,
+        ));
+
+        let res = self.call_raw(
             store,
             params,
             |cx, params, params_ty, dst: &mut MaybeUninit<[ValRaw; MAX_FLAT_PARAMS]>| {
@@ -370,13 +379,25 @@ impl Func {
                     let mut flat = src.iter();
                     for (ty, slot) in results_ty.types.iter().zip(results) {
                         *slot = Val::lift(cx, *ty, &mut flat)?;
+                        results_copy.push(slot.clone());
                     }
                     Ok(())
                 } else {
-                    Self::load_results(cx, results_ty, results, &mut src.iter())
+                    let result = Self::load_results(cx, results_ty, results, &mut src.iter());
+                    if result.is_ok() {
+                        results_copy.extend(results.iter().cloned());
+                    }
+                    result
                 }
             },
-        )
+        );
+
+        store.0.add_event_to_chain(Event::new(
+            "WasmReturn".to_string(),
+            serde_json::to_vec(&json!(results_copy))?,
+        ));
+
+        res
     }
 
     /// Invokes the underlying wasm function, lowering arguments and lifting the
