@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added chain storage and event tracking support
 //! Wasmtime's "store" type
 //!
 //! This module, and its submodules, contain the `Store` type and various types

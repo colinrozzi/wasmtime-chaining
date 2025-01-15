@@ -3,7 +3,7 @@
 
   <p>
     <strong>A standalone runtime for
-    <a href="https://webassembly.org/">WebAssembly</a></strong>
+    <a href="https://webassembly.org/">WebAssembly</a> with chaining support</strong>
   </p>
 
   <strong>A <a href="https://bytecodealliance.org/">Bytecode Alliance</a> project</strong>
@@ -163,5 +163,11 @@ that][contributing]!
 [guide]: https://bytecodealliance.github.io/wasmtime
 
 ---
+* **Chaining Support**. This fork adds support for tracking all calls between host and WebAssembly, creating a hash chain of state transitions. This enables:
+  - Improved error tracing across WebAssembly component boundaries
+  - Deterministic replay of any sequence of events
+  - Complete state transition history
+  - Unique event identification through hash chaining
 
 It's Wasmtime.
+[Rest of original README content...]

@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added serialization and hashing support for chaining feature
 use crate::component::func::{bad_type_info, desc, LiftContext, LowerContext};
 use crate::component::matching::InstanceType;
 use crate::component::{ComponentType, Lift, Lower};

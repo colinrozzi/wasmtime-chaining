@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added chain-compatible function wrapping support
 use crate::component::func::HostFunc;
 use crate::component::instance::RuntimeImport;
 use crate::component::matching::{InstanceType, TypeChecker};

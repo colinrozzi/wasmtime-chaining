@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added Wasmtime chaining feature support to track state transitions
 // Wasmtime's runtime has lots of fiddly bits where we're doing operations like
 // casting between wasm i32/i64 and host `usize` values. There's also in general
 // just lots of pieces of low-level manipulation of memory and internals of VM

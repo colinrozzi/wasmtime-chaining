@@ -100,20 +100,48 @@ fn main() -> Result<()> {
     hello.call(&mut store, ())?;
 
     Ok(())
+// Navigate the chain
+if let Some(parent) = chain.get_parent(hash) {
+    // Process parent event
 }
 ```
 
 More examples and information can be found in the `wasmtime` crate's [online
 documentation](https://docs.rs/wasmtime) as well.
+## Benefits
 
 ## Documentation
+1. **Enhanced Debugging**
+   - Complete call history
+   - State transition tracking
+   - Cross-component error tracing
 
-[📚 Read the Wasmtime guide here! 📚][guide]
+2. **Reproducibility**
+   - Deterministic replay of events
+   - Exact state reproduction
+   - Testing and verification
 
 The [wasmtime guide][guide] is the best starting point to learn about what
 Wasmtime can do for you or help answer your questions about Wasmtime. If you're
 curious in contributing to Wasmtime, [it can also help you do
 that][contributing]!
+3. **Audit Trail**
+   - Verifiable event sequence
+   - State transition validation
+   - Historical record keeping
 
 [contributing]: https://bytecodealliance.github.io/wasmtime/contributing.html
 [guide]: https://bytecodealliance.github.io/wasmtime
+## Implementation Details
+
+The chaining feature is implemented in three main files:
+- `mod.rs`: Module organization and exports
+- `chain.rs`: Core chain and event implementations
+- `values.rs`: Serializable value representations
+
+The feature integrates with Wasmtime's existing component model and type system, providing a seamless experience while maintaining type safety and performance.
+
+## License
+
+Copyright 2024 Colin Rozzi
+Licensed under the Apache License, Version 2.0

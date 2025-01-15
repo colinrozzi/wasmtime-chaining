@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added Wasmtime chaining feature support to track state transitions
 //! # Wasmtime's embedding API
 //!
 //! Wasmtime is a WebAssembly engine for JIT-compiled or ahead-of-time compiled
@@ -15,6 +16,8 @@
 //!
 //! [WebAssembly modules]: https://webassembly.github.io/spec
 //! [WebAssembly components]: https://component-model.bytecodealliance.org
+//!
+// Modified 2024 Colin Rozzi - Added chaining feature support
 //!
 //! The `wasmtime` crate is designed to be safe, efficient, and ergonomic.
 //! This enables executing WebAssembly without the embedder needing to use

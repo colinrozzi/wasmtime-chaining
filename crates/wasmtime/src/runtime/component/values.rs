@@ -1,3 +1,4 @@
+// Modified 2024 Colin Rozzi - Added serialization and hashing support for chaining feature
 use crate::component::func::{desc, Lift, LiftContext, Lower, LowerContext};
 use crate::component::ResourceAny;
 use crate::prelude::*;
